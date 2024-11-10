@@ -3,8 +3,8 @@
 #include <stdbool.h>
 #include <math.h>
 
-#define SCREEN_WIDTH 640
-#define SCREEN_HEIGHT 480
+#define SCREEN_WIDTH 1200
+#define SCREEN_HEIGHT 720
 
 bool init(SDL_Window ** gWindow, SDL_Surface ** gScreenSurface);
 
@@ -35,32 +35,34 @@ void startLoop(SDL_Window * window, SDL_Surface * screenSurface, SDL_Surface * g
 	SDL_Event e;
 	struct ORInput input = {0, 0, 0, false};
     SDL_PixelFormat * pFormat = (*screenSurface).format;
-	while (!input.quit){
+
+while (!input.quit){
     
 	getInput(&input, &e);
     applyInput(&input, camState, gameSettings);
 
 	for (int y = 0; y < SCREEN_HEIGHT / 2; y++){
-		for (int x = 0; x < SCREEN_WIDTH; x++){
-			if (y == 0){continue;}
+	    for (int x = 0; x < SCREEN_WIDTH; x++){
+			if (y != 0){
+			    float mappedX = (*camState)[2] * ((x - SCREEN_WIDTH / 2) * (*gameSettings)[0]) / y;
+			    float mappedY = (*camState)[2] * (*gameSettings)[1] / y;
 
-			float mappedX = (*camState)[2] * ((x - SCREEN_WIDTH / 2) * (*gameSettings)[0]) / y;
-			float mappedY = (*camState)[2] * (*gameSettings)[1] / y;
+                int rotatedX = input.cosRot * mappedX - input.sinRot * mappedY  + (*camState)[0];
+                int rotatedY = input.sinRot * mappedX + input.cosRot * mappedY  + (*camState)[1];
 
-            int rotatedX = input.cosRot * mappedX - input.sinRot * mappedY  + (*camState)[0];
-            int rotatedY = input.sinRot * mappedX + input.cosRot * mappedY  + (*camState)[1];
-
-            if (rotatedX > gameMaps[0]->w || rotatedX <= 0 || rotatedY > gameMaps[0]->h || rotatedY < 0){
-                setPixel(screenSurface, x, y + SCREEN_HEIGHT / 2, SDL_MapRGB(pFormat, 0, 50, 0));
-                continue;
+                if (rotatedX > gameMaps[0]->w || rotatedX <= 0 || rotatedY > gameMaps[0]->h || rotatedY < 0){
+                    setPixel(screenSurface, x, y + SCREEN_HEIGHT / 2, SDL_MapRGB(pFormat, 0, 50, 0));
+                }
+                else{
+			        Uint32 pixel = getPixel(gameMaps[0], rotatedX, rotatedY);
+			        setPixel(screenSurface, x, y + SCREEN_HEIGHT / 2, pixel);
+                }
             }
-
-			Uint32 pixel = getPixel(gameMaps[0], rotatedX, rotatedY);
-			setPixel(screenSurface, x, y + SCREEN_HEIGHT / 2, pixel);
 		}
 	}
 	SDL_UpdateWindowSurface( window );
-	}
+}
+
 }
 
 
@@ -76,7 +78,7 @@ int main( int argc, char * args[] )
 
 	loadedMaps[0] = SDL_LoadBMP("marioKartMap.bmp");
 
-	float settings[8] = {1 ,180, -0.01, 1, 1, 0, 0, 0}; // cam scale x, cam scale y, rot speed, move speed
+	float settings[8] = {1 ,280, -0.01, 1, 1, 0, 0, 0}; // cam scale x, cam scale y, rot speed, move speed
 	float camState[4] = {0,0,500,0}; // x - horizontal, y - horizontal, fake "z" vertical  
 
 		
