@@ -4,12 +4,19 @@
 #include <math.h>
 #include <unistd.h>
 
-#define SCREEN_WIDTH 1200
+#define SCREEN_WIDTH 1280
 #define SCREEN_HEIGHT 720
-#define PIXEL_SCALE = 4
 
 #define new_max(x,y) (((x) >= (y)) ? (x) : (y))
 #define new_min(x,y) (((x) <= (y)) ? (x) : (y))
+
+
+#define LOG_ENABLED 1
+#define LOG_FRAME_LENGHT 0
+#define LOG_SPEED 1
+#define LOG_TIMING 60
+
+const float screenScale = 1;
 
 struct Float3{
     float x;
@@ -95,7 +102,7 @@ void startLoop(SDL_Window * window, SDL_Surface * screenSurface, SDL_Surface * g
     double deltaTime = 0;
     Uint16 frame = 0;
 
-    float pImgScale = 4;
+    float pImgScale = SCREEN_HEIGHT * 4 / 720;
 
     SDL_Surface * kartSurf = SDL_LoadBMP("kart.bmp"); 
 
@@ -105,7 +112,7 @@ void startLoop(SDL_Window * window, SDL_Surface * screenSurface, SDL_Surface * g
 
     if( texture == NULL ){printf( "SDL Error: %s\n", SDL_GetError() );}
 
-    SDL_Rect dst = {SCREEN_WIDTH / 2 - pImgScale * kartSurf->w / 2,3 * SCREEN_HEIGHT / 4 - pImgScale * kartSurf->h / 2,pImgScale * kartSurf->w,pImgScale * kartSurf->h};
+    SDL_Rect dst = {SCREEN_WIDTH * screenScale / 2 - pImgScale * kartSurf->w / 2,3 * SCREEN_HEIGHT * screenScale / 4 - pImgScale * kartSurf->h / 2,pImgScale * kartSurf->w  * screenScale,pImgScale * kartSurf->h  * screenScale};
 
 while (!input.quit){
     
@@ -114,7 +121,7 @@ while (!input.quit){
     LAST = NOW;
     NOW = SDL_GetPerformanceCounter();
     deltaTime = (double)((NOW - LAST) / (double)SDL_GetPerformanceFrequency() );
-    double frameTimeCap = 0.008;
+    double frameTimeCap = 0.017;
     usleep(new_max(0, 1000000 * (frameTimeCap - deltaTime)));
     NOW = SDL_GetPerformanceCounter();
     
@@ -123,12 +130,16 @@ while (!input.quit){
     applyPhysics(playerState, gameSettings, &input);
     updateCam(camState, playerState, gameSettings);
 
-
-    if (frame%120 == 0){
-        printf("%f\n", lenght(playerState->velo.x, playerState->velo.y));
-        //printf("%f\n", camState->pos.z);
+#if LOG_ENABLED == 1
+    if (frame%LOG_TIMING == 0){
+#if LOG_FRAME_LENGHT == 1
+        printf("Calculation length: %f ms, %f %% Time ulitlisation\n", deltaTime * 1000, 100 * (deltaTime) / frameTimeCap);
+#endif
+#if LOG_SPEED == 1
+        printf("Speed: %f\n", lenght(playerState->velo.x,playerState->velo.y));
+#endif
     }
-
+#endif
     
 	for (int y = 0; y < SCREEN_HEIGHT / 2; y++){
 	    for (int x = 0; x < SCREEN_WIDTH; x++){
@@ -187,7 +198,7 @@ int main( int argc, char * args[] )
 
 	loadedMaps[0] = SDL_LoadBMP("marioKartMap.bmp");
 
-	struct ORC_Settings settings = {1 ,400, -0.01, 0, 25, 0.999, 0.988, 0.007, 2.0}; // cam scale x, cam scale y, rot speed, move speed, player distance, forward player drag ,lateral player drag, player accel, top speed
+	struct ORC_Settings settings = {1 ,400, -0.018, 0,720 * 25 / SCREEN_HEIGHT, 0.997, 0.983, 0.03, 4.0}; // cam scale x, cam scale y, rot speed, move speed, player distance, forward player drag ,lateral player drag, player accel, top speed
 	struct ORC_CamState camState = {0,0,14}; // x - horizontal, y - horizontal, fake "z" vertical , rottation
 
     struct Float3 pPos = {150 , 0 ,14};
@@ -208,13 +219,13 @@ int main( int argc, char * args[] )
 bool init(SDL_Window ** gWindow, SDL_Surface ** gScreenSurface)
 {
     bool success = true;
-
+    printf("----------------------\n");
     if( SDL_Init( SDL_INIT_VIDEO ) < 0 ){
         printf( "SDL INIT FAILED : %s\n", SDL_GetError() );
         success = false;
     }
     else{
-        *gWindow = SDL_CreateWindow( "OGRACER", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN );
+        *gWindow = SDL_CreateWindow( "OGRACER", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH * screenScale, SCREEN_HEIGHT * screenScale, SDL_WINDOW_SHOWN );
         printf("SDL INIT OK\n");
 		if( *gWindow == NULL ){
             printf( "SDL WINDOW IS COOKED: %s\n", SDL_GetError() );
@@ -222,6 +233,13 @@ bool init(SDL_Window ** gWindow, SDL_Surface ** gScreenSurface)
         }
     }
 
+#if LOG_ENABLED == 1
+    printf("GAME LOG ENABLED\n");
+    printf("SPEED LOG       : %i\n", LOG_SPEED);
+    printf("FRAME TIMES LOG : %i\n", LOG_FRAME_LENGHT);
+    printf("----------------------\n");
+
+#endif
     return success;
 }
 
@@ -260,7 +278,7 @@ void applyPhysics(struct ORC_PlayerState * playerState, struct ORC_Settings * ga
     float nLtD = 1.0 - gameSettings->lateralPlayerDrag;
 
     if (input->yA > 0){
-        nLtD /= 2.5;
+        nLtD /= 2;
         nFwD /= 2;
     }
 
@@ -289,8 +307,8 @@ void applyPhysics(struct ORC_PlayerState * playerState, struct ORC_Settings * ga
     //playerState->pos.z += input->zA * gameSettings->moveSpeed; 
 
     // ROTATION
-    float nRotSpeed = new_min(gameSettings->rotSpeed, gameSettings->rotSpeed / speed);
-    playerState->rot += input->rot * gameSettings->rotSpeed;
+    float nRotSpeed = new_min(gameSettings->rotSpeed,-gameSettings->rotSpeed / speed);
+    playerState->rot += input->rot * nRotSpeed;
 
     
     
