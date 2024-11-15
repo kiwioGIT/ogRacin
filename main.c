@@ -13,7 +13,7 @@
 
 #define LOG_ENABLED 1
 #define LOG_FRAME_LENGHT 0
-#define LOG_SPEED 1
+#define LOG_SPEED 0
 #define LOG_TIMING 60
 
 const float screenScale = 1;
@@ -57,13 +57,15 @@ struct ORC_Settings{
 struct ORC_CamState{
     struct Float3 pos;
     float rot;
+    float sinRot;
+    float cosRot;
 };
 
 bool init(SDL_Window ** gWindow, SDL_Surface ** gScreenSurface);
 
 void setPixel(SDL_Surface  *surface, int x, int y, Uint32 pixel);
 
-void applyPhysics(struct ORC_PlayerState * playerState, struct ORC_Settings * gameSettings, struct ORC_Input * input);
+void applyPhysics(struct ORC_PlayerState * playerState, struct ORC_Settings * gameSettings, struct ORC_Input * input, SDL_Surface * gameMaps[4]);
 
 Uint32 getPixel(SDL_Surface *surface, int x, int y);
 
@@ -127,28 +129,22 @@ while (!input.quit){
     
     SDL_LockTextureToSurface(texture, NULL, &screenSurface);
     getInput(&input, &e);
-    applyPhysics(playerState, gameSettings, &input);
+    applyPhysics(playerState, gameSettings, &input, gameMaps);
     updateCam(camState, playerState, gameSettings);
 
-#if LOG_ENABLED == 1
-    if (frame%LOG_TIMING == 0){
-#if LOG_FRAME_LENGHT == 1
-        printf("Calculation length: %f ms, %f %% Time ulitlisation\n", deltaTime * 1000, 100 * (deltaTime) / frameTimeCap);
-#endif
-#if LOG_SPEED == 1
-        printf("Speed: %f\n", lenght(playerState->velo.x,playerState->velo.y));
-#endif
-    }
-#endif
     
+    //Uint8 rComp;
+    //SDL_GetRGB(keyPixel, rComp, NULL, NULL, NULL);
+    //printf("%i\n", keyPixel);
+
 	for (int y = 0; y < SCREEN_HEIGHT / 2; y++){
 	    for (int x = 0; x < SCREEN_WIDTH; x++){
 			if (y != 0){
 			    float mappedX = camState->pos.z * ((x - SCREEN_WIDTH / 2) * gameSettings->scaleX) / y;
 			    float mappedY = camState->pos.z * gameSettings->scaleY / y;
 
-                int rotatedX = playerState->cosRot * mappedX - playerState->sinRot * mappedY  + camState->pos.x;
-                int rotatedY = playerState->sinRot * mappedX + playerState->cosRot * mappedY  + camState->pos.y;
+                int rotatedX = camState->cosRot * mappedX - camState->sinRot * mappedY  + camState->pos.x;
+                int rotatedY = camState->sinRot * mappedX + camState->cosRot * mappedY  + camState->pos.y;
 
                 if (rotatedX > gameMaps[0]->w || rotatedX <= 0 || rotatedY > gameMaps[0]->h || rotatedY < 0){
                     setPixel(screenSurface, x, y + SCREEN_HEIGHT / 2, SDL_MapRGB(screenSurface->format, 0, 40, 0));
@@ -160,13 +156,28 @@ while (!input.quit){
             }
 		}
 	}
+
+
     SDL_UnlockTexture(texture);
-    SDL_RenderClear( renderer );
+    SDL_RenderClear(renderer);
 
     
     SDL_RenderCopy(renderer, texture, NULL , NULL);
     SDL_RenderCopy(renderer, kartTex, NULL, &dst);
-    SDL_RenderPresent( renderer );
+    SDL_RenderPresent(renderer);
+
+#if LOG_ENABLED == 1
+    if (frame%LOG_TIMING == 0){
+        //printf("%f", camState->rot);
+#if LOG_FRAME_LENGHT == 1
+        printf("Calculation length: %f ms, %f %% Time ulitlisation\n", deltaTime * 1000, 100 * (deltaTime) / frameTimeCap);
+#endif
+#if LOG_SPEED == 1
+        printf("Speed: %f\n", lenght(playerState->velo.x,playerState->velo.y));
+#endif
+    }
+#endif
+
 }
 }
 
@@ -198,10 +209,12 @@ int main( int argc, char * args[] )
 
 	loadedMaps[0] = SDL_LoadBMP("marioKartMap.bmp");
 
+    loadedMaps[1] = SDL_LoadBMP("marioKartMapKey.bmp");
+
 	struct ORC_Settings settings = {1 ,400, -0.018, 0,720 * 25 / SCREEN_HEIGHT, 0.997, 0.983, 0.03, 4.0}; // cam scale x, cam scale y, rot speed, move speed, player distance, forward player drag ,lateral player drag, player accel, top speed
 	struct ORC_CamState camState = {0,0,14}; // x - horizontal, y - horizontal, fake "z" vertical , rottation
 
-    struct Float3 pPos = {150 , 0 ,14};
+    struct Float3 pPos = {150 , 150 ,14};
     struct Float3 pVelo = {0.0 , 0.0 ,0.0};
     struct ORC_PlayerState pState = {pPos, pVelo};
     pState.velo = pVelo;    
@@ -259,7 +272,7 @@ Uint32 getPixel(SDL_Surface *surface, int x, int y)
   return *target_pixel;
 }
 
-void applyPhysics(struct ORC_PlayerState * playerState, struct ORC_Settings * gameSettings, struct ORC_Input * input){
+void applyPhysics(struct ORC_PlayerState * playerState, struct ORC_Settings * gameSettings, struct ORC_Input * input, SDL_Surface * gameMaps[4]){
 
     // PRE COMPUTING
     float sn = sin(playerState->rot);
@@ -274,12 +287,19 @@ void applyPhysics(struct ORC_PlayerState * playerState, struct ORC_Settings * ga
     playerState->cosRot = cs;
 
     // DRAG
+
     float nFwD = 1.0 - gameSettings->forwardPlayerDrag;
     float nLtD = 1.0 - gameSettings->lateralPlayerDrag;
 
     if (input->yA > 0){
         nLtD /= 2;
         nFwD /= 2;
+    }
+    Uint32 keyPixel = getPixel(gameMaps[1], playerState->pos.x, playerState->pos.y);
+    if (keyPixel == -65536){
+        nFwD /= 2;
+        nLtD /= 2;
+
     }
 
     nFwD = 1.0 - nFwD;
@@ -310,20 +330,6 @@ void applyPhysics(struct ORC_PlayerState * playerState, struct ORC_Settings * ga
     float nRotSpeed = new_min(gameSettings->rotSpeed,-gameSettings->rotSpeed / speed);
     playerState->rot += input->rot * nRotSpeed;
 
-    
-    
-
-
-    //float nPlayerDrag = gameSettings->playerDrag;
-
-    //if (input->yA == 1){
-    //    nPlayerDrag = (nPlayerDrag + 1) / 2;
-    //}
-
-    //playerState->velo.x *= nPlayerDrag;
-    //playerState->velo.y *= nPlayerDrag;
-    
-
     // SPEED CAPPING
     float nSpeedCap = gameSettings->speedCap;
 
@@ -336,9 +342,20 @@ void applyPhysics(struct ORC_PlayerState * playerState, struct ORC_Settings * ga
 
 void updateCam(struct ORC_CamState * camState, struct ORC_PlayerState * playerState, struct ORC_Settings * gameSettings){
     camState->pos = playerState->pos;
-    camState->pos.x += playerState->sinRot * gameSettings->playerDistance;
-    camState->pos.y -= playerState->cosRot * gameSettings->playerDistance;
-    camState->rot = playerState->rot;
+
+    float l = lenght(playerState->velo.x , playerState->velo.y);
+
+    //float difX = playerState->velo.x / l;
+    //float difY = playerState->velo.y / l;
+
+    //printf("%f\n", lenght(difX, difY));
+    camState->pos.x += /*-difX * gameSettings->playerDistance;//*/playerState->sinRot * gameSettings->playerDistance;
+    camState->pos.y -= /*-difY * gameSettings->playerDistance ;//*/playerState->cosRot * gameSettings->playerDistance;
+    //camState->rot = asin(-difX / difY);
+    //camState->rot = 0;
+    
+    camState->sinRot = playerState->sinRot;
+    camState->cosRot = playerState->cosRot;
 }
 
 void getInput(struct ORC_Input * inputOut,SDL_Event * event){
@@ -386,4 +403,3 @@ void getInput(struct ORC_Input * inputOut,SDL_Event * event){
         }
     }
 }
-
