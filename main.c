@@ -10,7 +10,7 @@
 #define new_max(x,y) (((x) >= (y)) ? (x) : (y))
 #define new_min(x,y) (((x) <= (y)) ? (x) : (y))
 
-
+#define FRAME_LENGHT_FLOOR 0.017
 #define LOG_ENABLED 1
 #define LOG_FRAME_LENGHT 0
 #define LOG_SPEED 0
@@ -18,6 +18,7 @@
 
 const float screenScale = 1;
 float lapTime = 9999999999;
+int notInStart = 1;
 
 
 struct Float3{
@@ -127,8 +128,7 @@ while (!input.quit){
     LAST = NOW;
     NOW = SDL_GetPerformanceCounter();
     deltaTime = (double)((NOW - LAST) / (double)SDL_GetPerformanceFrequency() );
-    double frameTimeCap = 0.017;
-    usleep(new_max(0, 1000000 * (frameTimeCap - deltaTime)));
+    usleep(new_max(0, 1000000 * (FRAME_LENGHT_FLOOR - deltaTime)));
     NOW = SDL_GetPerformanceCounter();
     
     SDL_LockTextureToSurface(texture, NULL, &screenSurface);
@@ -136,10 +136,6 @@ while (!input.quit){
     applyPhysics(playerState, gameSettings, &input, gameMaps);
     updateCam(camState, playerState, gameSettings);
 
-    
-    //Uint8 rComp;
-    //SDL_GetRGB(keyPixel, rComp, NULL, NULL, NULL);
-    //printf("%i\n", keyPixel);
 
 	for (int y = 0; y < SCREEN_HEIGHT / 2; y++){
 	    for (int x = 0; x < SCREEN_WIDTH; x++){
@@ -305,7 +301,13 @@ void applyPhysics(struct ORC_PlayerState * playerState, struct ORC_Settings * ga
         nLtD *= 13;
     }
     if (keyPixel == -16711936){
-        
+        if (notInStart > 2){
+            printf("Lap time was: %f\n", notInStart * FRAME_LENGHT_FLOOR);
+        }
+        notInStart = 0;
+    }
+    else{
+        notInStart += 1;
     }
 
     nFwD = 1.0 - nFwD;
