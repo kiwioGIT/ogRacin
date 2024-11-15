@@ -297,8 +297,8 @@ void applyPhysics(struct ORC_PlayerState * playerState, struct ORC_Settings * ga
     }
     Uint32 keyPixel = getPixel(gameMaps[1], playerState->pos.x, playerState->pos.y);
     if (keyPixel == -65536){
-        nFwD /= 2;
-        nLtD /= 2;
+        nFwD *= 20;
+        nLtD *= 20;
 
     }
 
