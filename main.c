@@ -4,19 +4,22 @@
 #include <math.h>
 #include <unistd.h>
 
-#define SCREEN_WIDTH 1280
-#define SCREEN_HEIGHT 720
+#define SCREEN_WIDTH 640
+#define SCREEN_HEIGHT 360
 
 #define new_max(x,y) (((x) >= (y)) ? (x) : (y))
 #define new_min(x,y) (((x) <= (y)) ? (x) : (y))
 
-
+#define FRAME_LENGHT_FLOOR 0.017
 #define LOG_ENABLED 1
 #define LOG_FRAME_LENGHT 0
 #define LOG_SPEED 0
 #define LOG_TIMING 60
 
 const float screenScale = 1;
+float lapTime = 9999999999;
+int notInStart = 1;
+
 
 struct Float3{
     float x;
@@ -72,6 +75,8 @@ Uint32 getPixel(SDL_Surface *surface, int x, int y);
 
 void getInput(struct ORC_Input * inputOut,SDL_Event * event);
 
+void updateCam(struct ORC_CamState * camState, struct ORC_PlayerState * playerState, struct ORC_Settings * gameSettings);
+
 float dot(float x1, float y1, float x2, float y2){
     return x1*x2 + y1*y2;
 }
@@ -124,8 +129,7 @@ while (!input.quit){
     LAST = NOW;
     NOW = SDL_GetPerformanceCounter();
     deltaTime = (double)((NOW - LAST) / (double)SDL_GetPerformanceFrequency() );
-    double frameTimeCap = 0.017;
-    usleep(new_max(0, 1000000 * (frameTimeCap - deltaTime)));
+    usleep(new_max(0, 1000000 * (FRAME_LENGHT_FLOOR - deltaTime)));
     NOW = SDL_GetPerformanceCounter();
 
     SDL_LockTextureToSurface(texture, NULL, &screenSurface);
@@ -137,6 +141,7 @@ while (!input.quit){
     //Uint8 rComp;
     //SDL_GetRGB(keyPixel, rComp, NULL, NULL, NULL);
     //printf("%i\n", keyPixel);
+
 
 	for (int y = 0; y < SCREEN_HEIGHT / 2; y++){
 	    for (int x = 0; x < SCREEN_WIDTH; x++){
@@ -298,9 +303,17 @@ void applyPhysics(struct ORC_PlayerState * playerState, struct ORC_Settings * ga
     }
     Uint32 keyPixel = getPixel(gameMaps[1], playerState->pos.x, playerState->pos.y);
     if (keyPixel == -65536){
-        nFwD *= 20;
-        nLtD *= 20;
-
+        nFwD *= 13;
+        nLtD *= 13;
+    }
+    if (keyPixel == -16711936){
+        if (notInStart > 2){
+            printf("Lap time was: %f\n", notInStart * FRAME_LENGHT_FLOOR);
+        }
+        notInStart = 0;
+    }
+    else{
+        notInStart += 1;
     }
 
     nFwD = 1.0 - nFwD;
@@ -323,9 +336,19 @@ void applyPhysics(struct ORC_PlayerState * playerState, struct ORC_Settings * ga
     playerState->velo.y += sn * moveX + cs * moveY;
 
     // MOVEMENT
-    playerState->pos.x += playerState->velo.x;
-    playerState->pos.y += playerState->velo.y;
-    //playerState->pos.z += input->zA * gameSettings->moveSpeed;
+
+    Uint32 keyPixelAhead = getPixel(gameMaps[1], playerState->pos.x + playerState->velo.x, playerState->pos.y + playerState->velo.y);
+
+    if (keyPixelAhead != -1){
+        playerState->pos.x += playerState->velo.x;
+        playerState->pos.y += playerState->velo.y;
+        //playerState->pos.z += input->zA * gameSettings->moveSpeed; 
+    }
+    else{
+        playerState->velo.x = 0;
+        playerState->velo.x = 0;
+    }
+
 
     // ROTATION
     float nRotSpeed = new_min(gameSettings->rotSpeed,-gameSettings->rotSpeed / speed);
