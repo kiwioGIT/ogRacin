@@ -63,6 +63,7 @@ struct ORC_CamState{
 
 bool init(SDL_Window ** gWindow, SDL_Surface ** gScreenSurface);
 
+
 void setPixel(SDL_Surface  *surface, int x, int y, Uint32 pixel);
 
 void applyPhysics(struct ORC_PlayerState * playerState, struct ORC_Settings * gameSettings, struct ORC_Input * input, SDL_Surface * gameMaps[4]);
@@ -97,7 +98,7 @@ void startLoop(SDL_Window * window, SDL_Surface * screenSurface, SDL_Surface * g
     if (pFormat == NULL){
         printf( "SDL Error: %s\n", SDL_GetError() );
     }
-    
+
     Uint64 NOW = SDL_GetPerformanceCounter();
     Uint64 LAST = 0;
 
@@ -106,7 +107,7 @@ void startLoop(SDL_Window * window, SDL_Surface * screenSurface, SDL_Surface * g
 
     float pImgScale = SCREEN_HEIGHT * 4 / 720;
 
-    SDL_Surface * kartSurf = SDL_LoadBMP("kart.bmp"); 
+    SDL_Surface * kartSurf = SDL_LoadBMP("kart.bmp");
 
     SDL_Texture* texture = SDL_CreateTexture(renderer, SDL_BITSPERPIXEL(8), SDL_TEXTUREACCESS_STREAMING, SCREEN_WIDTH, SCREEN_HEIGHT);
 
@@ -117,7 +118,7 @@ void startLoop(SDL_Window * window, SDL_Surface * screenSurface, SDL_Surface * g
     SDL_Rect dst = {SCREEN_WIDTH * screenScale / 2 - pImgScale * kartSurf->w / 2,3 * SCREEN_HEIGHT * screenScale / 4 - pImgScale * kartSurf->h / 2,pImgScale * kartSurf->w  * screenScale,pImgScale * kartSurf->h  * screenScale};
 
 while (!input.quit){
-    
+
     frame++;
 
     LAST = NOW;
@@ -126,13 +127,13 @@ while (!input.quit){
     double frameTimeCap = 0.017;
     usleep(new_max(0, 1000000 * (frameTimeCap - deltaTime)));
     NOW = SDL_GetPerformanceCounter();
-    
+
     SDL_LockTextureToSurface(texture, NULL, &screenSurface);
     getInput(&input, &e);
     applyPhysics(playerState, gameSettings, &input, gameMaps);
     updateCam(camState, playerState, gameSettings);
 
-    
+
     //Uint8 rComp;
     //SDL_GetRGB(keyPixel, rComp, NULL, NULL, NULL);
     //printf("%i\n", keyPixel);
@@ -161,7 +162,7 @@ while (!input.quit){
     SDL_UnlockTexture(texture);
     SDL_RenderClear(renderer);
 
-    
+
     SDL_RenderCopy(renderer, texture, NULL , NULL);
     SDL_RenderCopy(renderer, kartTex, NULL, &dst);
     SDL_RenderPresent(renderer);
@@ -185,7 +186,7 @@ while (!input.quit){
 int main( int argc, char * args[] )
 {
 	SDL_Window * gWindow = NULL;
-    
+
 	SDL_Surface * gScreenSurface = NULL;
 
     gScreenSurface = SDL_CreateRGBSurface(0,SCREEN_WIDTH, SCREEN_HEIGHT, 8, 0,0,0,0);
@@ -217,8 +218,8 @@ int main( int argc, char * args[] )
     struct Float3 pPos = {150 , 150 ,14};
     struct Float3 pVelo = {0.0 , 0.0 ,0.0};
     struct ORC_PlayerState pState = {pPos, pVelo};
-    pState.velo = pVelo;    
-	
+    pState.velo = pVelo;
+
 	startLoop(gWindow, gScreenSurface,loadedMaps, &settings, &camState, &pState, renderer);
 
 	SDL_DestroyWindow( gWindow );
@@ -324,7 +325,7 @@ void applyPhysics(struct ORC_PlayerState * playerState, struct ORC_Settings * ga
     // MOVEMENT
     playerState->pos.x += playerState->velo.x;
     playerState->pos.y += playerState->velo.y;
-    //playerState->pos.z += input->zA * gameSettings->moveSpeed; 
+    //playerState->pos.z += input->zA * gameSettings->moveSpeed;
 
     // ROTATION
     float nRotSpeed = new_min(gameSettings->rotSpeed,-gameSettings->rotSpeed / speed);
@@ -353,7 +354,7 @@ void updateCam(struct ORC_CamState * camState, struct ORC_PlayerState * playerSt
     camState->pos.y -= /*-difY * gameSettings->playerDistance ;//*/playerState->cosRot * gameSettings->playerDistance;
     //camState->rot = asin(-difX / difY);
     //camState->rot = 0;
-    
+
     camState->sinRot = playerState->sinRot;
     camState->cosRot = playerState->cosRot;
 }
