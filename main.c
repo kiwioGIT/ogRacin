@@ -188,7 +188,7 @@ while (!input.quit){
 }
 
 
-int main( int argc, char * args[] )
+int mainF()
 {
 	SDL_Window * gWindow = NULL;
 
@@ -234,6 +234,9 @@ int main( int argc, char * args[] )
 	return 0;
 }
 
+int main( int argc, char * args[] ){
+    mainF();
+}
 
 bool init(SDL_Window ** gWindow, SDL_Surface ** gScreenSurface)
 {
